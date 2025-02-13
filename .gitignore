@@ -1,0 +1,46 @@
+# Python bytecode files
+*.pyc
+*.pyo
+__pycache__/
+
+# Virtual environment folders
+env/
+venv/
+ENV/
+.venv/
+
+# Jupyter notebook checkpoints
+.ipynb_checkpoints/
+
+# VSCode settings folder
+.vscode/
+
+# PyCharm settings folder
+.idea/
+
+# MacOS system files
+.DS_Store
+
+# Windows system files
+Thumbs.db
+
+# Logs
+*.log
+
+# Test output
+*.cover
+*.hypothesis/
+
+# Distribution and packaging
+*.egg
+*.egg-info
+dist/
+build/
+*.whl
+
+# Miscellaneous
+*.bak
+*.swp
+
+# Specific to the project
+config/params.json  # You may want to track this if it's not sensitive, otherwise keep it in .gitignore
