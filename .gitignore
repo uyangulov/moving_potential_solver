@@ -44,3 +44,5 @@ build/
 
 # Specific to the project
 config/params.json  # You may want to track this if it's not sensitive, otherwise keep it in .gitignore
+
+*.ipynb
