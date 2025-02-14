@@ -1,5 +1,6 @@
 import pytest
 import numpy as np
+from src.utils import compute_fft
 
 class TestApplyCircuit:
 
