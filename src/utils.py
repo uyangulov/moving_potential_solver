@@ -19,14 +19,17 @@ def K_coordspace(borne_parameter, coord_grid):
 def K_momentum_space(borne_parameter, momentum_grid):
     return 1 / borne_parameter * momentum_grid ** 2
 
+
 def compute_fft(field, axis):
     return jnp.fft.fftshift(jnp.fft.fft(field, axis=axis), axes=axis)
 
+
 def compute_inverse_fft(fft_field, axis):
-    return jnp.fft.ifft(jnp.fft.ifftshift(fft_field, axes = axis), axis=axis)
+    return jnp.fft.ifft(jnp.fft.ifftshift(fft_field, axes=axis), axis=axis)
 
 # return grid able to represent every fourier component of state with desired energy of QM harmonic osc
 # energy in units of A_st
+
 
 def adaptive_grid(left, right, required_energy, B):
 
@@ -71,3 +74,26 @@ def visualize_profiles(time_grid, coord_profiles, amp_profiles, total_times, pro
         ax_row[1].set_xlabel('Time')
         ax_row[1].set_ylim(-1, amplitudes[amplitude_index]+1)
 
+
+def dot(x, y):
+    return jnp.vecdot(x, y, axis=-1)
+
+
+def dot2(x, y):
+    return jnp.abs(dot(x, y))**2
+
+
+def norm(x):
+    return dot2(x, x)
+
+def fid(x, y):
+    return dot2(x, y) / (norm(x) * norm(y))
+
+def kinetic_energy(psi_momentum, kinetic_term):
+    return dot(psi_momentum * kinetic_term, psi_momentum) / (1e-6 + norm(psi_momentum))
+
+def potential_energy(psi, potential_term):
+    return dot(psi * potential_term, psi) / (1e-6 + norm(psi))
+
+def compute_mean_energy(psi, psi_momentum, potential_term, kinetic_term):
+    return kinetic_energy(psi_momentum, kinetic_term) + potential_energy(psi, potential_term)
