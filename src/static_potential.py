@@ -54,14 +54,19 @@ class StaticPotential:
         )
 
     # eigenstate right before evolution
-    def groundstate(self, coord_grid):
+    def groundstate_psis(self, coord_grid):
+        alpha = (self.borne_parameter / 2) ** 0.25
+        left_eigvec =  jnp.exp(-(alpha * (coord_grid - self.x_left))**2)
+        right_eigvec = jnp.exp(-(alpha * (coord_grid - self.x_right))**2)
+        return left_eigvec, right_eigvec
 
-        exponent_coeff = -jnp.sqrt(self.borne_parameter/8)
-        # ground state of harmonic oscillator
-        left_eigvec = jnp.exp(exponent_coeff * (coord_grid - self.x_left)**2)
-        right_eigvec = jnp.exp(exponent_coeff * (coord_grid - self.x_right)**2)
-        norm = jnp.linalg.norm(left_eigvec)
-        eigval = 1 / 2 * jnp.sqrt(2 / self.borne_parameter)
+    def left_groundstate_psi(self, coord_grid):
+        return self.groundstate_psis(coord_grid)[0]
 
-        return left_eigvec / norm, right_eigvec / norm, eigval
+    def right_groundstate_psi(self, coord_grid):
+        return self.groundstate_psis(coord_grid)[1]
+
+    def groundstate_energy(self):
+        eigval = jnp.sqrt(2 / self.borne_parameter) / 2
+        return eigval
 
