@@ -78,16 +78,11 @@ def visualize_profiles(time_grid, coord_profiles, amp_profiles, total_times, pro
 def dot(x, y):
     return jnp.vecdot(x, y, axis=-1)
 
-
 def dot2(x, y):
     return jnp.abs(dot(x, y))**2
 
-
-def norm(x):
-    return dot2(x, x)
-
 def fid(x, y):
-    return dot2(x, y) / (norm(x) * norm(y))
+    return dot2(x / jnp.sqrt(dot(x,x)), y / jnp.sqrt(dot(y,y)))
 
 def kinetic_energy(psi_momentum, kinetic_term):
     return dot(psi_momentum * kinetic_term, psi_momentum) / (1e-6 + norm(psi_momentum))
