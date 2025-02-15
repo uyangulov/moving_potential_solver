@@ -1,4 +1,5 @@
 import jax.numpy as jnp
+from scipy.special import hermite, factorial
 
 
 def second_derivative_matrix(N, step):
@@ -78,17 +79,22 @@ def visualize_profiles(time_grid, coord_profiles, amp_profiles, total_times, pro
 def dot(x, y):
     return jnp.vecdot(x, y, axis=-1)
 
+
 def dot2(x, y):
     return jnp.abs(dot(x, y))**2
 
-def fid(x, y):
-    return dot2(x / jnp.sqrt(dot(x,x)), y / jnp.sqrt(dot(y,y)))
 
 def kinetic_energy(psi_momentum, kinetic_term):
-    return dot(psi_momentum * kinetic_term, psi_momentum) / (1e-6 + norm(psi_momentum))
+    return dot(psi_momentum * kinetic_term, psi_momentum) / (1e-6 + dot(psi_momentum, psi_momentum))
+
 
 def potential_energy(psi, potential_term):
-    return dot(psi * potential_term, psi) / (1e-6 + norm(psi))
+    return dot(psi * potential_term, psi) / (1e-6 + dot(psi))
+
 
 def compute_mean_energy(psi, psi_momentum, potential_term, kinetic_term):
     return kinetic_energy(psi_momentum, kinetic_term) + potential_energy(psi, potential_term)
+
+
+
+
