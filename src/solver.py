@@ -5,6 +5,8 @@ from utils import K_momentum_space
 import jax.numpy as jnp
 from jax import jit, lax
 from utils import compute_inverse_fft, compute_fft
+from functools import partial
+from utils import kinetic_energy, dot, dot2, compute_mean_n
 
 
 class Solver:
@@ -25,78 +27,107 @@ class Solver:
     def __reshape_to_fit_problem(self, obj):
         return self.__expand_dims(obj) + jnp.zeros(self.shape)[..., jnp.newaxis]
 
-    # (mps.n_profiles, mps.n_amps, mps.n_total_times, N_x)
-    def init_psi_0(self, coord_grid):
+    @staticmethod
+    def step_fn(psi, time_index, coord_grid, coord_profiles, amp_profiles,
+                kinetic_propagator, kinetic_term, static_potential_term, time_step, psi_target, mps: MovingPotentials):
 
-        psi_0, _, _ = self.sp.groundstate(coord_grid)
-        psi_0 = self.__reshape_to_fit_problem(psi_0)
-        #print(f"Initialized psi_0 of shape {psi_0.shape}")
-        return psi_0
+        moving_potential_term = mps.V_moving(
+            coord_grid, coord_profiles, amp_profiles, time_index)
 
-    def final_groundstate(self, coord_grid):
-        _, psi_f, _ = self.sp.groundstate(coord_grid)
-        psi_f = self.__reshape_to_fit_problem(psi_f)
-        #print(f"Initialized psi_f of shape {psi_f.shape}")
-        return psi_f
+        potential_half_propagator = jnp.exp(
+            -1j * (moving_potential_term + static_potential_term) * time_step / 2)
 
-    def init_operators(self, coord_grid, time_grid, momentum_grid):
+        psi *= potential_half_propagator
+        psi_momentum = compute_fft(psi, axis=-1)
+        psi_momentum *= kinetic_propagator
+        psi = compute_inverse_fft(psi_momentum, axis=-1)
+        psi *= potential_half_propagator
 
-        time_step = time_grid[1] - time_grid[0]
+        K = kinetic_energy(psi_momentum, kinetic_term)
+        psi_norm = dot2(psi, psi)
+        fidelity = dot2(psi, psi_target)
+        
+        qnum = compute_mean_n(
+            psi, coord_grid, B=500, a_mt=amp_profiles[..., time_index], delta_mt=mps.width, x_mt=coord_profiles[..., time_index])
+        
+        stats = (K, psi_norm, fidelity, qnum)
 
-        kinetic_term = K_momentum_space(self.B, momentum_grid) / self.C
+        return psi, stats
+
+    def prepare_kinetic(self, momentum_grid, time_step):
+        kinetic_term = K_momentum_space(self.B, momentum_grid)
         kinetic_term = self.__expand_dims(kinetic_term)
         kinetic_propagator = jnp.exp(-1j * kinetic_term * time_step)
-        #print(f"kinetic_propagator shape {kinetic_propagator.shape}")
+        return kinetic_term, kinetic_propagator
 
-        static_potential_term = self.sp.V(coord_grid) / self.C
+    def prepare_static_potential(self, coord_grid):
+        static_potential_term = self.sp.V(coord_grid)
         static_potential_term = self.__expand_dims(static_potential_term)
-        #print(f"static_potential_term shape {static_potential_term.shape}")
+        return static_potential_term
 
-        return kinetic_term, kinetic_propagator, static_potential_term
+    def prepare_left_psi(self, coord_grid):
+        psi = self.sp.left_groundstate_psi(coord_grid)
+        psi = self.__reshape_to_fit_problem(psi)
+        return psi
 
-    def solve(self, coord_grid, time_grid, momentum_grid):
+    def prepare_right_psi(self, coord_grid):
+        psi = self.sp.right_groundstate_psi(coord_grid)
+        psi = self.__reshape_to_fit_problem(psi)
+        return psi
 
-        psi_0 = self.init_psi_0(coord_grid)
-        time_step = time_grid[1] - time_grid[0]
-        kinetic_term, kinetic_propagator, static_potential_term = self.init_operators(
-            coord_grid, time_grid, momentum_grid)
-        
+    def evolve(self, coord_grid, time_grid, momentum_grid, psi_start=None, psi_target=None, reverse=False):
+
+        time_step = (time_grid[1] - time_grid[0]) / self.C
+        time_indices = jnp.arange(len(time_grid))
+
+        if reverse:
+            time_step = -time_step
+            time_indices = jnp.arange(len(time_grid) - 1, -1, -1)
+
+        if psi_start is None:
+            print("start psi not specified so creating one")
+            psi_start = self.prepare_right_psi(
+                coord_grid) if reverse else self.prepare_left_psi(coord_grid)
+
+        if psi_target is None:
+            print("final psi not specified so creating one")
+            psi_target = self.prepare_left_psi(
+                coord_grid) if reverse else self.prepare_right_psi(coord_grid)
+
+        kinetic_term, kinetic_propagator = self.prepare_kinetic(
+            momentum_grid, time_step)
+        static_potential_term = self.prepare_static_potential(coord_grid)
+
         coord_profiles, amp_profiles = self.mps.populate_profiles(time_grid)
-        #print(f"Populated profiles")
 
-        psi_f = self.final_groundstate(coord_grid)
+        # Create a partially applied step function
+        step_fn_partial = jit(partial(
+            Solver.step_fn,
+            coord_grid=coord_grid,
+            coord_profiles=coord_profiles,
+            amp_profiles=amp_profiles,
+            kinetic_propagator=kinetic_propagator,
+            kinetic_term=kinetic_term,
+            static_potential_term=static_potential_term,
+            time_step=time_step,
+            psi_target=psi_target,
+            mps=self.mps
+        ))
 
-        @jit
-        def __step_fn(psi, time_index):
+        final_psi, stats = lax.scan(step_fn_partial, psi_start, time_indices)
 
-            moving_potential_term = self.mps.V_moving(
-                coord_grid, coord_profiles, amp_profiles, time_index) / self.C
-            potential_half_propagator = jnp.exp(
-                -1j * (moving_potential_term + static_potential_term) * time_step / 2)
+        return final_psi, stats
 
-            psi *= potential_half_propagator
-            psi = compute_fft(psi, axis=-1)
-            psi *= kinetic_propagator
-            kinetic = self.__dot(psi * kinetic_term, psi)
-            psi = compute_inverse_fft(psi, axis=-1)
-            psi *= potential_half_propagator
+    def back_and_forth(self, coord_grid, time_grid, momentum_grid, psi_start=None):
 
-            return psi, (self.__dot2(psi, psi), kinetic, self.__fid(psi, psi_f))
+        if psi_start is None:
+            print("start psi not specified so creating one")
+            psi_start = self.prepare_left_psi(coord_grid)
 
-        # Start from psi_0, iterate over time_grid (excluding the first time)
-        final_psi, stats = lax.scan(
-            __step_fn, psi_0, jnp.arange(len(time_grid)))
+        x, t, p = coord_grid, time_grid, momentum_grid
+        end_psi, end_stats = self.evolve(
+            x, t, p, psi_start=psi_start, psi_target=psi_start, reverse=False)
+        back_psi, back_stats = self.evolve(
+            x, t, p, psi_start=end_psi, psi_target=psi_start, reverse=True)
 
-        return final_psi, stats  # Return the final wavefunction at the last timestep
-
-    def __dot(self, x, y):
-        return jnp.vecdot(x, y, axis=-1)
-
-    def __dot2(self, x, y):
-        return jnp.abs(self.__dot(x, y))**2
-
-    def __norm(self, x):
-        return self.__dot2(x, x)
-
-    def __fid(self, x, y):
-        return self.__dot2(x, y) / (self.__norm(x) * self.__norm(y))
+        return back_psi, (jnp.concatenate((s1, s2), axis=0) for s1, s2 in zip(end_stats, back_stats))
