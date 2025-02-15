@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 import json
-from utils import K_coordspace
+from utils import dot
 
 
 class StaticPotential:
@@ -56,9 +56,10 @@ class StaticPotential:
     # eigenstate right before evolution
     def groundstate_psis(self, coord_grid):
         alpha = (self.borne_parameter / 2) ** 0.25
-        left_eigvec =  jnp.exp(-(alpha * (coord_grid - self.x_left))**2)
+        left_eigvec = jnp.exp(-(alpha * (coord_grid - self.x_left))**2)
         right_eigvec = jnp.exp(-(alpha * (coord_grid - self.x_right))**2)
-        return left_eigvec, right_eigvec
+        norm = jnp.sqrt(jnp.dot(left_eigvec, left_eigvec))
+        return left_eigvec / norm, right_eigvec / norm
 
     def left_groundstate_psi(self, coord_grid):
         return self.groundstate_psis(coord_grid)[0]
@@ -69,4 +70,3 @@ class StaticPotential:
     def groundstate_energy(self):
         eigval = jnp.sqrt(2 / self.borne_parameter) / 2
         return eigval
-
