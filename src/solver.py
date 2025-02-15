@@ -1,4 +1,3 @@
-
 from static_potential import StaticPotential
 from moving_potential import MovingPotentials
 from utils import K_momentum_space
@@ -6,7 +5,7 @@ import jax.numpy as jnp
 from jax import jit, lax
 from utils import compute_inverse_fft, compute_fft
 from functools import partial
-from utils import kinetic_energy, dot, dot2, compute_mean_n
+from utils import kinetic_energy, dot2, compute_mean_energy
 
 
 class Solver:
@@ -34,8 +33,10 @@ class Solver:
         moving_potential_term = mps.V_moving(
             coord_grid, coord_profiles, amp_profiles, time_index)
 
+        potential_term = moving_potential_term + static_potential_term
+
         potential_half_propagator = jnp.exp(
-            -1j * (moving_potential_term + static_potential_term) * time_step / 2)
+            -1j * potential_term * time_step / 2)
 
         psi *= potential_half_propagator
         psi_momentum = compute_fft(psi, axis=-1)
@@ -46,11 +47,10 @@ class Solver:
         K = kinetic_energy(psi_momentum, kinetic_term)
         psi_norm = dot2(psi, psi)
         fidelity = dot2(psi, psi_target)
-        
-        qnum = compute_mean_n(
-            psi, coord_grid, B=500, a_mt=amp_profiles[..., time_index], delta_mt=mps.width, x_mt=coord_profiles[..., time_index])
-        
-        stats = (K, psi_norm, fidelity, qnum)
+        energy = compute_mean_energy(
+            psi, psi_momentum, potential_term, kinetic_term)
+
+        stats = [K, psi_norm, fidelity, energy]
 
         return psi, stats
 
@@ -115,8 +115,19 @@ class Solver:
         ))
 
         final_psi, stats = lax.scan(step_fn_partial, psi_start, time_indices)
-
+        stats = [jnp.transpose(stat, (1,2,3,0)) for stat in stats]
+        n_history = self.n_from_energy(stats[-1], amp_profiles)
+        stats.append(n_history)
         return final_psi, stats
+    
+    def n_from_energy(self, energy_history, amp_profiles):
+        #amp_profiles - (shape, time)
+        #energy_history - (shape, time)
+        D = 1 + amp_profiles / self.mps.width**2
+        energy_step = jnp.sqrt(2 * D / self.B)
+        n_history = (energy_history + 1 + amp_profiles) / energy_step
+        return n_history
+
 
     def back_and_forth(self, coord_grid, time_grid, momentum_grid, psi_start=None):
 
@@ -129,5 +140,6 @@ class Solver:
             x, t, p, psi_start=psi_start, psi_target=psi_start, reverse=False)
         back_psi, back_stats = self.evolve(
             x, t, p, psi_start=end_psi, psi_target=psi_start, reverse=True)
+        
 
-        return back_psi, (jnp.concatenate((s1, s2), axis=0) for s1, s2 in zip(end_stats, back_stats))
+        return back_psi, (jnp.concatenate((s1, s2), axis=-1) for s1, s2 in zip(end_stats, back_stats))
