@@ -89,7 +89,7 @@ def kinetic_energy(psi_momentum, kinetic_term):
 
 
 def potential_energy(psi, potential_term):
-    return dot(psi * potential_term, psi) / (1e-6 + dot(psi))
+    return dot(psi * potential_term, psi) / (1e-6 + dot(psi, psi))
 
 
 def compute_mean_energy(psi, psi_momentum, potential_term, kinetic_term):
