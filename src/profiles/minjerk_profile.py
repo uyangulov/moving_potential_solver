@@ -1,32 +1,20 @@
 import jax.numpy as jnp
-from profiles.misc import get_steps, magic_poly
+from profiles.misc import profile_template, get_steps, time_bounds, magic_poly
+
 
 def generate_minjerk_profile(mov_amp, time_grid, total_time, ksi_start, ksi_stop, eta):
 
-    move_time = total_time * eta
-    rise_time = (total_time - move_time) / 3
-    fall_time = rise_time
+    coord_profile, amp_profile = profile_template(
+        mov_amp, time_grid, total_time, ksi_start, ksi_stop, eta)
 
-    amp_profile = jnp.zeros_like(time_grid)
-    coord_profile = jnp.zeros_like(time_grid)
-
+    move_time, rise_time, fall_time = time_bounds(total_time, eta)
     rise, move, fall, wait = get_steps(time_grid, eta, total_time)
+    distance = ksi_stop - ksi_start
 
-    # Generate coordinate profile
-    coord_profile = jnp.where(rise, ksi_start, coord_profile) 
-
-    coord_profile = jnp.where(
-        move,  
-        ksi_start + (ksi_stop - ksi_start) * magic_poly((time_grid - rise_time)/ move_time), 
+    coord_profile += jnp.where(
+        move,
+        distance * magic_poly((time_grid - rise_time) / move_time),
         coord_profile
-    )  
-    coord_profile = jnp.where(fall, ksi_stop, coord_profile)  
-    coord_profile = jnp.where(wait, ksi_stop, coord_profile)
-
-    # Generate amplitude profile
-    amp_profile = jnp.where(rise, mov_amp * time_grid / rise_time, amp_profile)  # Rise phase
-    amp_profile = jnp.where(move, mov_amp, amp_profile)  # Hold at max value during move phase
-    amp_profile = jnp.where(fall, mov_amp * (1 - (time_grid - rise_time - move_time) / fall_time), amp_profile)  # Fall phase
-    amp_profile = jnp.where(wait, 0, amp_profile)  # Hold at 0 during wait phase
+    )
 
     return coord_profile, amp_profile
