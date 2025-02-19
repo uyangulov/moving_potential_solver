@@ -1,5 +1,5 @@
 import jax.numpy as jnp
-from moving_profiles import generate_profile
+from profiles.sta_profile import generate_profile
 
 
 class MovingPotentials:
@@ -89,7 +89,7 @@ class MovingPotentials:
         centered = coord_grid[None, None, None, :] - coord_profile_this_time_expanded
 
         return -amp_profile_this_time_expanded * jnp.exp(-centered**2 / (2 * self.width**2))
-        # return amp_profile_this_time_expanded * (-1 + centered**2 / (2 * self.width**2))
+        #return amp_profile_this_time_expanded * (-1 + (centered**2) / (2 * self.width**2))
 
     def __repr__(self):
         """
