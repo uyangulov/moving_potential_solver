@@ -1,8 +1,8 @@
 import jax.numpy as jnp
-from profiles.sta_profile import generate_profile
-
+from profiles.generate import generate_profile
 
 class MovingPotentials:
+
     def __init__(self, eta, width, amps, total_times, src, dest):
         self.width = width
         self.eta = eta
@@ -12,7 +12,7 @@ class MovingPotentials:
         self.amps = amps
         self.total_times = total_times
 
-        self.profile_kinds = ["Linear", "Minjerk"]  # , "STA"]
+        self.profile_kinds = ["Linear", "Minjerk", "Hybrid"]  # , "STA"]
 
     @property
     def n_total_times(self):

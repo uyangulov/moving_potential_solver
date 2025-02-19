@@ -21,10 +21,9 @@ def time_bounds(total_time, eta):
     return move_time, rise_time, fall_time
 
 
-def profile_template(mov_amp, time_grid, total_time, ksi_start, ksi_stop, eta):
+def profile_template(mov_amp, time_grid, total_time, distance, eta):
 
     move_time, rise_time, fall_time = time_bounds(total_time, eta)
-    distance = ksi_stop - ksi_start
 
     amp_profile = jnp.zeros_like(time_grid)
     coord_profile = jnp.zeros_like(time_grid)
@@ -36,7 +35,6 @@ def profile_template(mov_amp, time_grid, total_time, ksi_start, ksi_stop, eta):
     coord_profile = jnp.where(move, 0, coord_profile)  
     coord_profile = jnp.where(fall, distance, coord_profile)  
     coord_profile = jnp.where(wait, distance, coord_profile)
-    coord_profile += ksi_start
 
     # Generate amplitude profile
     amp_profile = jnp.where(rise, mov_amp * time_grid / rise_time, amp_profile)  

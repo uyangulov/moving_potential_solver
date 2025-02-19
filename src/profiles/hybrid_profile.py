@@ -27,19 +27,23 @@ def hybrid_normalized(move_time, time_grid, hybr):
     return result
 
 
-def generate_hybdid_profile(mov_amp, time_grid, total_time, ksi_start, ksi_stop, eta, hybr):
+def generate_hybrid_profile(mov_amp, time_grid, total_time, ksi_start, ksi_stop, eta, hybr):
+
+    distance = ksi_stop - ksi_start
 
     coord_profile, amp_profile = profile_template(
-        mov_amp, time_grid, total_time, ksi_start, ksi_stop, eta)
+        mov_amp, time_grid, total_time, distance, eta)
 
     move_time, rise_time, fall_time = time_bounds(total_time, eta)
     rise, move, fall, wait = get_steps(time_grid, eta, total_time)
-    distance = ksi_stop - ksi_start
 
     coord_profile += jnp.where(
         move,
-        distance * hybrid_normalized(move_time, time_grid, hybr),
-        coord_profile
+        distance *
+        hybrid_normalized(move_time, time_grid - (1 - eta)
+                          * total_time / 3, hybr),
+        0
     )
+    coord_profile += ksi_start
 
     return coord_profile, amp_profile
