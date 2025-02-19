@@ -30,8 +30,6 @@ def compute_inverse_fft(fft_field, axis):
 
 # return grid able to represent every fourier component of state with desired energy of QM harmonic osc
 # energy in units of A_st
-
-
 def adaptive_grid(left, right, required_energy, B):
 
     coord_step = jnp.pi * jnp.sqrt(1 / (B * required_energy)) / 10
@@ -96,5 +94,15 @@ def compute_mean_energy(psi, psi_momentum, potential_term, kinetic_term):
     return kinetic_energy(psi_momentum, kinetic_term) + potential_energy(psi, potential_term)
 
 
+def visualize_stat(selected_amp_index, mps, ax, total_times, amplitudes, time_grid, stat):
 
-
+    for profile, profile_index in mps.profile_kind_to_index.items():
+        for total_time_index, total_time in enumerate(total_times):
+            ax[profile_index].plot(
+                time_grid,
+                stat[profile_index, selected_amp_index, total_time_index],
+                label=f'Total Time: {total_time:.2f}' + r" $T_{st}$"
+            )
+        ax[profile_index].grid(ls=":")
+        # ax[profile_index].set_xlim(0,10)
+    ax[0].legend()

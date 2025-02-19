@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 from scipy.optimize import root_scalar
-from profiles.general import get_steps, magic_poly, magic_poly_first, magic_poly_second
+from profiles.misc import get_steps, magic_poly, magic_poly_second
 
 def y_func(time_grid, total_time, ksi_start, ksi_stop, eta):
     rise, move, fall, wait = get_steps(time_grid, eta, total_time)
