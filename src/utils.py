@@ -3,21 +3,26 @@ from scipy.special import hermite, factorial
 
 
 def second_derivative_matrix(N, step):
+    '''
+    Finite difference approximation of second derivative
+    '''
     coeffs_matrix = -2 * jnp.eye(N) + jnp.eye(N, k=-1) + jnp.eye(N, k=1)
     return coeffs_matrix / step**2
 
-# kinetic_operator (square matrix) in coordinate space
-
 
 def K_coordspace(borne_parameter, coord_grid):
+    '''
+    kinetic_operator (square matrix) in coordinate space
+    '''
     N = coord_grid.shape[0]
     coord_step = coord_grid[1] - coord_grid[0]
     return -1 / borne_parameter * second_derivative_matrix(N, coord_step)
 
-# kinetic_operator diagonal in momentum space
-
 
 def K_momentum_space(borne_parameter, momentum_grid):
+    '''
+    kinetic_operator diagonal in momentum space
+    '''
     return 1 / borne_parameter * momentum_grid ** 2
 
 
@@ -28,10 +33,12 @@ def compute_fft(field, axis):
 def compute_inverse_fft(fft_field, axis):
     return jnp.fft.ifft(jnp.fft.ifftshift(fft_field, axes=axis), axis=axis)
 
-# return grid able to represent every fourier component of state with desired energy of QM harmonic osc
-# energy in units of A_st
-def adaptive_grid(left, right, required_energy, B):
 
+def adaptive_grid(left, right, required_energy, B):
+    '''
+    # return grid able to represent every fourier component of state with desired energy of QM harmonic oscillator
+    # energy in units of A_st
+    '''
     coord_step = jnp.pi * jnp.sqrt(1 / (B * required_energy)) / 10
     coord_grid = jnp.arange(left, right, coord_step, dtype=jnp.complex64)
     N_x = coord_grid.shape[0]
