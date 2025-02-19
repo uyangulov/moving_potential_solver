@@ -1,86 +1,6 @@
 import jax.numpy as jnp
 from scipy.optimize import root_scalar
-
-def get_steps(time_grid, eta, total_time):
-    """
-    Returns condition arrays based on the scaled time, eta, and T.
-    """
-    first = (1 - eta) * total_time # 3 * rise time
-    second = (1 + 2 * eta) * total_time # 3 * (rise time + move time)
-    third = (2 + eta) * total_time # 3 * (rise time + move time + fall time)
-    #capture step
-    rise = 3 * time_grid < first
-    #move step
-    move = (first <= 3 * time_grid) & (3 * time_grid < second)
-    #release step
-    fall = (second <= 3 * time_grid) & (3 * time_grid < third)
-    #wait step
-    wait = 3 * time_grid >= third
-    return rise, move, fall, wait
-
-def magic_poly(s):
-    return 10 * s**3 - 15 * s**4 + 6 * s**5
-
-def magic_poly_first(s):
-    return 30 * s**2 - 60 * s**3 + 30 * s**4
-
-def magic_poly_second(s):
-    return 60 * s - 180 * s**2 + 120 * s**3
-
-def generate_linear_profile(mov_amp, time_grid, total_time, ksi_start, ksi_stop, eta):
-
-    move_time = total_time * eta
-    rise_time = (total_time - move_time) / 3
-    fall_time = rise_time
-
-    amp_profile = jnp.zeros_like(time_grid)
-    coord_profile = jnp.zeros_like(time_grid)
-
-    rise, move, fall, wait = get_steps(time_grid, eta, total_time)
-
-    # Generate coordinate profile
-    coord_profile = jnp.where(rise, ksi_start, coord_profile) 
-    coord_profile = jnp.where(move, ksi_start + (ksi_stop - ksi_start) * (time_grid - rise_time) / move_time, coord_profile)  
-    coord_profile = jnp.where(fall, ksi_stop, coord_profile)  
-    coord_profile = jnp.where(wait, ksi_stop, coord_profile)
-
-    # Generate amplitude profile
-    amp_profile = jnp.where(rise, mov_amp * time_grid / rise_time, amp_profile)  # Rise phase
-    amp_profile = jnp.where(move, mov_amp, amp_profile)  # Hold at max value during move phase
-    amp_profile = jnp.where(fall, mov_amp * (1 - (time_grid - rise_time - move_time) / fall_time), amp_profile)  # Fall phase
-    amp_profile = jnp.where(wait, 0, amp_profile)  # Hold at 0 during wait phase
-
-    return coord_profile, amp_profile
-
-def generate_minjerk_profile(mov_amp, time_grid, total_time, ksi_start, ksi_stop, eta):
-
-    move_time = total_time * eta
-    rise_time = (total_time - move_time) / 3
-    fall_time = rise_time
-
-    amp_profile = jnp.zeros_like(time_grid)
-    coord_profile = jnp.zeros_like(time_grid)
-
-    rise, move, fall, wait = get_steps(time_grid, eta, total_time)
-
-    # Generate coordinate profile
-    coord_profile = jnp.where(rise, ksi_start, coord_profile) 
-
-    coord_profile = jnp.where(
-        move,  
-        ksi_start + (ksi_stop - ksi_start) * magic_poly((time_grid - rise_time)/ move_time), 
-        coord_profile
-    )  
-    coord_profile = jnp.where(fall, ksi_stop, coord_profile)  
-    coord_profile = jnp.where(wait, ksi_stop, coord_profile)
-
-    # Generate amplitude profile
-    amp_profile = jnp.where(rise, mov_amp * time_grid / rise_time, amp_profile)  # Rise phase
-    amp_profile = jnp.where(move, mov_amp, amp_profile)  # Hold at max value during move phase
-    amp_profile = jnp.where(fall, mov_amp * (1 - (time_grid - rise_time - move_time) / fall_time), amp_profile)  # Fall phase
-    amp_profile = jnp.where(wait, 0, amp_profile)  # Hold at 0 during wait phase
-
-    return coord_profile, amp_profile
+from profiles.general import get_steps, magic_poly, magic_poly_first, magic_poly_second
 
 def y_func(time_grid, total_time, ksi_start, ksi_stop, eta):
     rise, move, fall, wait = get_steps(time_grid, eta, total_time)
@@ -214,17 +134,5 @@ def generate_sta_profile(
         amplitudes.append(amplitude)
         
     return jnp.array(ksi_mov), jnp.array(amplitudes)
-
-#args for delta_mt, w_mt, w_st
-def generate_profile(profile, amp, time_grid, total_time, x_left, x_right, eta, *args):
-    """Generates coordinate and amplitude profiles based on the profile type."""
-    if profile == "Linear":
-        return generate_linear_profile(amp, time_grid, total_time, x_left, x_right, eta)
-    elif profile == "Minjerk":
-        return generate_minjerk_profile(amp, time_grid, total_time, x_left, x_right, eta)
-    elif profile == "STA":
-        return generate_sta_profile(amp, time_grid, total_time, x_left, x_right, eta, *args)
-    else:
-        raise ValueError(f"Unsupported profile type: {profile}")
 
 
