@@ -143,3 +143,4 @@ class Solver:
         
 
         return back_psi, (jnp.concatenate((s1, s2), axis=-1) for s1, s2 in zip(end_stats, back_stats))
+    

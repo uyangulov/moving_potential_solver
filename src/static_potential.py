@@ -18,10 +18,10 @@ class StaticPotential:
     # return static_potential_curve
     def V(self, coord_grid):
         first = -jnp.exp(-(coord_grid - self.x_left) ** 2 / 2)
-        second = -jnp.exp(-(coord_grid - self.x_right) ** 2 / 2)
+        #second = -jnp.exp(-(coord_grid - self.x_right) ** 2 / 2)
         # first = -1 + (coord_grid - self.x_left) ** 2 / 2
         # second = -1 + (coord_grid - self.x_right) ** 2 / 2
-        return first + second
+        return first# + second
 
     @classmethod
     def from_json(cls, filename):
@@ -29,7 +29,7 @@ class StaticPotential:
             params = json.load(file)
 
         h_reduced = params["reduced_planck_constant"]
-        A_st = params["static_tweezer_amplitude"]
+        A_st = params["static_tweezer_amplitude"] * 1e-6 * 1.380649e-23
         sigma_st = params["static_beam_width"]
         d = params["trap_distance"]
         m = params["atom_mass"]

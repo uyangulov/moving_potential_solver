@@ -12,7 +12,8 @@ class MovingPotentials:
         self.amps = amps
         self.total_times = total_times
 
-        self.profile_kinds = ["Linear", "Minjerk", "Hybrid"]  # , "STA"]
+        #self.profile_kinds = ["Linear", "Minjerk", "Hybrid"]  # , "STA"]
+        self.profile_kinds = ["Deepen"]
 
     @property
     def n_total_times(self):

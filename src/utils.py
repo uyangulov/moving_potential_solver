@@ -113,3 +113,13 @@ def visualize_stat(selected_amp_index, mps, ax, total_times, amplitudes, time_gr
         ax[profile_index].grid(ls=":")
         # ax[profile_index].set_xlim(0,10)
     ax[0].legend()
+
+def harmonic_oscillator_wavefunction(n, grid, D, B):
+    """
+    Compute the n-th quantum harmonic oscillator wavefunction in coord space
+    """
+    hermite_poly = hermite(n)
+    alpha = (D * B / 2) ** 0.25
+    transformed = alpha * grid
+    return alpha * jnp.exp(-0.5 * transformed ** 2) * hermite_poly(transformed)
+
